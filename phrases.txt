@@ -1,0 +1,44 @@
+# OBR phrase list:   keyword = sentence
+#
+# Type the keyword on the braille keyboard and press Enter to hear the sentence.
+# - One rule per line:  word = what it should say
+# - Keywords are not case-sensitive and may contain spaces (use the Space key).
+# - Keep keywords short (less to type) and different from each other: a keyword
+#   with one wrong letter still works if it is clearly closest to one keyword.
+# - "help" (unless you define it) reads out all the keywords.
+# - Save the file and the change works straight away, no restart needed.
+
+# Basic needs
+food = I need food. I'm hungry.
+water = I need water. I'm thirsty.
+cr = I need to use the restroom, please.
+sleep = I'm tired. I want to rest.
+pain = I'm in pain. Please help me.
+sick = I don't feel well.
+cold = I'm cold. Could I have a blanket, please?
+hot = I'm hot. Could you open a window or turn on the fan?
+med = It's time for my medicine.
+sos = Please help me. This is urgent.
+
+# Talking
+hi = Hello! Nice to meet you.
+yes = Yes.
+no = No.
+thanks = Thank you very much.
+sorry = I'm sorry.
+wait = Please wait a moment.
+again = Could you say that again, please?
+call = Please call my family.
+bye = Goodbye. See you next time.
+
+# Filipino
+kain = Gutom na po ako. Gusto ko pong kumain.
+tubig = Nauuhaw po ako. Pahingi po ng tubig.
+banyo = Kailangan ko pong mag-banyo.
+tulog = Pagod na po ako. Gusto ko pong magpahinga.
+sakit = Masama po ang pakiramdam ko.
+tulong = Tulungan po ninyo ako.
+salamat = Maraming salamat po.
+oo = Opo.
+hindi = Hindi po.
+paalam = Paalam po. Hanggang sa muli.

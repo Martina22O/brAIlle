@@ -1,0 +1,18 @@
+[Unit]
+# GPIO17 reads braille or printed text (auto); add  --print-button 27  for a
+# second button that always reads printed text.
+Description=OBR braille and text reader (push-button on GPIO17)
+After=sound.target
+
+[Service]
+# set for user "admin" with the project in /home/admin/obr (change if yours differ)
+User=admin
+WorkingDirectory=/home/admin/obr
+ExecStart=/usr/bin/python3 /home/admin/obr/braille_capture.py --headless --button 17
+Restart=on-failure
+RestartSec=3
+# lets espeak-ng reach the user's audio
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+
+[Install]
+WantedBy=multi-user.target

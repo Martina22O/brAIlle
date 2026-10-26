@@ -1,0 +1,20 @@
+[Unit]
+# The whole OBR device: OBR button (GPIO17), OCR button (GPIO27), TYPE button (GPIO22)
+# and the ESP32 braille keyboard. Use this INSTEAD of obr.service and
+# obr-keyboard.service: the camera and the ESP32 can only be used by one program.
+Description=OBR braille + printed text reader with braille keyboard
+After=sound.target
+
+[Service]
+Environment=PYTHONUNBUFFERED=1
+# set for user "admin" with the project in /home/admin/obr (change if yours differ)
+User=admin
+WorkingDirectory=/home/admin/obr
+ExecStart=/usr/bin/python3 /home/admin/obr/obr_main.py
+Restart=on-failure
+RestartSec=15
+# lets espeak-ng reach the user's audio
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+
+[Install]
+WantedBy=multi-user.target

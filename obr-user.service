@@ -1,0 +1,19 @@
+# OBR at start-up, as a *user* service of "admin" (so speech reaches the Pi's speaker).
+# Install:   mkdir -p ~/.config/systemd/user
+#            cp ~/obr/obr-user.service ~/.config/systemd/user/obr.service
+#            sudo loginctl enable-linger admin
+#            systemctl --user daemon-reload
+#            systemctl --user enable --now obr
+[Unit]
+Description=OBR braille + printed text reader with braille keyboard
+After=pipewire.service pipewire-pulse.service wireplumber.service
+
+[Service]
+Environment=PYTHONUNBUFFERED=1
+WorkingDirectory=/home/admin/obr
+ExecStart=/usr/bin/python3 /home/admin/obr/obr_main.py
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target
