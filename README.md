@@ -76,7 +76,8 @@ work on their own for testing.
 | `obr.service` | Optional: start OBR automatically at boot (button mode) |
 | `braille_keyboard.py` | ESP32 braille keyboard: spell a keyword, press Enter, hear a sentence |
 | `phrases.txt` | Keywords and their sentences (edit freely) |
-| `speech.py` | Shared speech settings: reading speed and the pause after each line |
+| `speech.py` | Shared speech settings: reading speed, wrapped lines and sentence pauses |
+| `test_speech.py` | Speech formatting and optional generated-audio checks without speaker playback |
 | `esp32_braille_keyboard/esp32_braille_keyboard.ino` | Firmware for the ESP32 DevKit |
 | `obr-keyboard.service` | Optional: start the keyboard program at boot |
 
@@ -102,6 +103,59 @@ python3 -c "import cv2; print(cv2.aruco)"
 ```
 
 (`make_aruco_sheet.py` also needs `sudo apt install python3-reportlab`, but only to make new sheets.)
+
+## Wireless SSH
+
+On Raspberry Pi OS with NetworkManager, connect the Pi to Wi-Fi before removing
+Ethernet. Replace `YOUR_SSID` with the network name and enter its password at the
+prompt:
+
+```bash
+sudo nmcli --ask device wifi connect "YOUR_SSID" ifname wlan0
+nmcli -f GENERAL.STATE,GENERAL.CONNECTION,IP4.ADDRESS device show wlan0
+```
+
+NetworkManager saves the connection and reconnects automatically. From another
+computer, check `ssh admin@PI_WIFI_IP`, replacing `PI_WIFI_IP` with the wireless
+address shown above. Disconnect Ethernet only after that login succeeds. The
+address is assigned by DHCP and can change.
+
+## Optional headless startup
+
+For an enclosed reader that uses buttons and speech, the desktop can stay off.
+Use the recommended user-service setup above, including lingering, and first
+confirm the reader and speaker work. Keep the user audio services enabled:
+
+```bash
+loginctl show-user admin -p Linger
+systemctl --user is-enabled obr.service pipewire.service pipewire-pulse.service wireplumber.service
+systemctl get-default                 # record this setting for rollback
+sudo systemctl set-default multi-user.target
+sudo systemctl reboot
+```
+
+After reconnecting over SSH, verify the services and listen for the ready message:
+
+```bash
+systemctl get-default
+systemctl --user is-active obr.service pipewire.service pipewire-pulse.service wireplumber.service
+journalctl -b _SYSTEMD_USER_UNIT=obr.service -n 30 --no-pager
+```
+
+The desktop and desktop-based VNC stay off in this mode. Wi-Fi, SSH and the reader
+remain available. Restore graphical startup with:
+
+```bash
+sudo systemctl set-default graphical.target
+sudo systemctl reboot
+```
+
+If the recorded original target differs, restore that target instead.
+
+Headless startup passed a clean-reboot check on a Pi 4, including speaker output,
+camera startup and keyboard detection. A cold power-on speed improvement has not
+been established. Compare the same power-to-first-ready-speech measurement before
+and after changing the target, and shut down cleanly before disconnecting power.
 
 ## Use
 
@@ -183,13 +237,36 @@ journalctl -u obr -f        # see what it reads
 
 ## Speech speed and pauses
 
-All programs read at **120 words per minute** (espeak-ng's normal speed is 175) and pause
-for **0.8 seconds after each line**, so the reading is easier to follow. Printed text
-keeps its lines, so the pause comes at the end of each printed line.
+The shared default is **140 words per minute**. Wrapped lines are joined for
+speech, so a short detected line does not force a pause halfway through a
+sentence. Sentence endings (`.`, `!`, `?`) receive a **400 ms pause**, including
+when the next word starts with a lowercase letter. Commas keep eSpeak's natural
+pacing.
+
+The formatter preserves the recognized text and protects decimals, common
+abbreviations, dotted acronyms and name initials. Ambiguous abbreviations can
+still need manual correction. A missing or misread period must be corrected in
+recognition; the speech formatter cannot recover punctuation it never receives.
 
 - Change it for one run: `python3 obr_main.py --speed 110 --line-pause 1.2`
-- Change it everywhere: edit `SPEED` and `LINE_PAUSE` at the top of `speech.py`
+- `--line-pause` adds an explicit pause after each detected line when requested.
+- Change the shared defaults in `speech.py`: `SPEED`, `LINE_PAUSE` and `SENTENCE_PAUSE`.
+- Restart the running OBR user service after changing those defaults:
+  `systemctl --user restart obr.service`.
 
+### Speech regression checks
+
+Run the formatting and shared-reader checks with Python's standard library:
+
+```bash
+python3 -B -m unittest -v test_speech
+```
+
+When `espeak-ng` is installed, the same command also synthesizes audio in memory
+and checks sentence pauses, wrapped lines and speaking speed. Those checks use
+`--stdout` and do not play sound or open the camera or GPIO. Audio checks skip when
+the engine is absent. A listening check with the actual speaker and Braille page
+is still needed to judge clarity.
 
 ## Braille keyboard (ESP32 DevKit + 9 buttons)
 
@@ -275,19 +352,25 @@ It can run at the same time as the camera reader (`obr.service`).
 - OCR was tested on simulated camera photos with the same Tesseract version Pi OS
   uses (5.3), not yet on photos from the Pi camera.
 
-## Not yet tested on real Pi hardware
+## Hardware validation
 
-Everything was tested with photos, simulated camera shots and a stand-in camera. These
-parts depend on the Pi itself, so check them first:
+The updated speech helper was deployed on a Raspberry Pi 4 Model B with an IMX219
+camera and eSpeak NG 1.52.0. A user listening check on the same Braille page
+confirmed clear pacing and improved pauses. Wireless SSH and headless user-service
+startup were also checked, including speaker output, camera initialization and
+ESP32 serial detection.
 
-- the real Pi camera through `picamera2` (`rpicam-hello --list-cameras` must list it);
-- the marker detector on Pi OS's OpenCV 4.6, which uses an older function than the
-  one tested (`python3 -c "import cv2; print(cv2.aruco)"`);
-- the GPIO button and `obr.service`. Under systemd, sound may need the desktop user
-  logged in; on Raspberry Pi OS Lite it goes straight to ALSA.
-- the ESP32 firmware was checked by compiling and simulating it against a stand-in
-  Arduino, not with the real ESP32 compiler. Upload it and test with Serial Monitor
-  first. The Pi side was tested against a stand-in ESP32 on a virtual serial port.
+Those checks do not establish recognition accuracy, a cold-start speedup or
+complete hardware coverage. Still verify these on the intended device:
+
+- Camera focus, lighting and marker-detection accuracy. The marker detector's
+  compatibility path for OpenCV 4.6 still needs checking; the live Pi used 4.10.
+- GPIO wiring and audio for the selected service arrangement. The recommended
+  user service was checked with PipeWire; legacy system-wide services can have
+  different audio access.
+- The ESP32 firmware with the real board compiler and hardware. Earlier compile
+  and simulation checks used a stand-in Arduino and serial device; successful Pi
+  serial detection does not replace a firmware build or a complete button test.
 
 ## How it works
 
